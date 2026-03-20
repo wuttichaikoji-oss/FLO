@@ -21,3 +21,51 @@ async function loadTokenStatus(){if(!isFirebaseReady()||!window.firebaseHelpers?
 function renderTokenRows(tokens){if(!tokens?.length)return '<div class="small">ยังไม่มีเครื่องที่ลงทะเบียน</div>';return tokens.map(t=>`<div class="token-row"><div><strong>${escapeHtml(t.userName||'ไม่ระบุชื่อ')}</strong> <span class="small">(${escapeHtml(t.role||'-')})</span></div><div class="small">อัปเดตล่าสุด: ${fmtDate(t.updatedAt)}</div></div>`).join('')}
 async function enableNotificationsForCurrentUser(session,elId){try{if(!isFirebaseReady())throw new Error('ยังไม่ได้เชื่อม Firebase');setFirebaseStatus(elId,'checking','กำลังเปิดการแจ้งเตือน...');await window.firebaseHelpers.registerDeviceToken(session);const fb=await checkFirebaseConnection();if(fb.ok)setFirebaseStatus(elId,'connected',fb.detail+' • เปิดแจ้งเตือนแล้ว');else setFirebaseStatus(elId,'connected','เปิดแจ้งเตือนแล้ว');alert('เปิดแจ้งเตือนสำเร็จ')}catch(err){setFirebaseStatus(elId,'error',err?.message||'เปิดแจ้งเตือนไม่สำเร็จ');alert('เปิดแจ้งเตือนไม่สำเร็จ: '+(err?.message||'unknown'))}}
 let __lastSeenTaskIds=new Set();function initializeSeenTasks(tasks){__lastSeenTaskIds=new Set((tasks||[]).map(t=>t.id))} function vibrateNewTask(){try{if(navigator.vibrate)navigator.vibrate([200,100,200,100,200,100,200,100,200])}catch(e){}} function vibrateStatusUpdate(){try{if(navigator.vibrate)navigator.vibrate([200,100,200])}catch(e){}} function alertForNewTasks(tasks){const ids=new Set((tasks||[]).map(t=>t.id));let hasNew=false;for(const t of (tasks||[])){if(!__lastSeenTaskIds.has(t.id)){hasNew=true;break}} if(hasNew)vibrateNewTask();__lastSeenTaskIds=ids}
+
+let __currentPopupTaskId = null;
+function departmentPopupClass(dep){
+  if(dep === 'HK') return 'popup-dept-hk';
+  if(dep === 'FB') return 'popup-dept-fb';
+  if(dep === 'ENG') return 'popup-dept-eng';
+  return '';
+}
+function openDeptPopup(task, targetPage){
+  __currentPopupTaskId = task.id;
+  const box = document.getElementById('deptPopup');
+  const inner = document.getElementById('deptPopupInner');
+  if(!box || !inner) return;
+  inner.className = 'popup-card ' + departmentPopupClass(task.targetDepartment);
+  document.getElementById('popupTitle').textContent = 'มีงานใหม่เข้าแผนก ' + (task.targetDepartment || '-');
+  document.getElementById('popupRoom').textContent = task.room ? ('ห้อง ' + task.room) : (task.outlet || '-');
+  document.getElementById('popupTaskName').textContent = task.title || '-';
+  document.getElementById('popupMeta').textContent = 'FO: ' + (task.requestedBy || '-') + ' • Priority: ' + (task.priority || '-') + ' • Assigned by: ' + (task.assignedBy || '-');
+  const viewBtn = document.getElementById('popupViewBtn');
+  if(viewBtn){
+    viewBtn.onclick = function(){
+      closeDeptPopup();
+      if(targetPage){
+        location.href = targetPage + '?focus=' + encodeURIComponent(task.id);
+      }
+    };
+  }
+  box.classList.add('show');
+}
+function closeDeptPopup(){
+  const box = document.getElementById('deptPopup');
+  if(box) box.classList.remove('show');
+}
+function popupMarkup(){
+  return `
+  <div class="popup-backdrop" id="deptPopup">
+    <div class="popup-card" id="deptPopupInner">
+      <div class="popup-title" id="popupTitle">มีงานใหม่</div>
+      <div class="popup-room" id="popupRoom">-</div>
+      <div><strong id="popupTaskName">-</strong></div>
+      <div class="popup-meta" id="popupMeta">-</div>
+      <div class="popup-actions">
+        <button class="good" id="popupViewBtn" type="button">ดูงาน</button>
+        <button class="ghost" type="button" onclick="closeDeptPopup()">ปิด</button>
+      </div>
+    </div>
+  </div>`;
+}

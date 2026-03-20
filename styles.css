@@ -208,3 +208,20 @@ dialog .body{padding:20px}
 .note-box{padding:12px 14px;border-radius:14px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);color:#dbeafe;margin-bottom:14px}
 
 .token-panel{margin-top:18px}.token-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}@media (max-width:900px){.token-grid{grid-template-columns:1fr}}.token-box{background:linear-gradient(180deg,#17171c,#1d1d24);border:1px solid var(--line);border-radius:14px;padding:14px}.token-row{padding:10px 0;border-top:1px solid rgba(255,255,255,.06)}.token-row:first-child{border-top:0;padding-top:0}.dept-tag{display:inline-block;padding:4px 8px;border-radius:999px;background:#23232a;border:1px solid #30303a;font-size:12px;color:#fff}
+
+.popup-backdrop{
+  position:fixed; inset:0; background:rgba(0,0,0,.6);
+  display:none; align-items:center; justify-content:center; z-index:9999; padding:18px;
+}
+.popup-backdrop.show{display:flex}
+.popup-card{
+  width:min(520px, 100%); background:linear-gradient(180deg,#15151a,#1c1c22);
+  border:1px solid var(--line); border-radius:20px; padding:20px; box-shadow:0 20px 60px rgba(0,0,0,.45);
+}
+.popup-title{font-size:24px; font-weight:800; margin-bottom:8px}
+.popup-room{font-size:18px; font-weight:700; margin-bottom:8px}
+.popup-meta{color:var(--muted); margin-bottom:12px}
+.popup-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:16px}
+.popup-dept-hk .popup-title{color:#93c5fd}
+.popup-dept-fb .popup-title{color:#f9a8d4}
+.popup-dept-eng .popup-title{color:#86efac}

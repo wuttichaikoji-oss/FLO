@@ -56,3 +56,12 @@ service cloud.firestore {
 - Supervisor FB = 9200
 - Supervisor ENG = 9300
 - Manager = 9900
+
+
+## อัปเดต v1.1
+- เพิ่ม popup แจ้งเตือนแยกตามแผนก
+  - HK เห็น popup ของ HK เท่านั้น
+  - FB เห็น popup ของ FB เท่านั้น
+  - ENG เห็น popup ของ ENG เท่านั้น
+- popup จะแสดงเมื่อมีงานใหม่ `New from FO`
+- มีปุ่ม `ดูงาน` และ `ปิด`
