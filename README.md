@@ -71,3 +71,8 @@ service cloud.firestore {
 - ปรับหน้า Supervisor HK / FB / ENG ให้ใช้ layout แนวเดียวกับไฟล์ supervisor ที่ผู้ใช้อัปโหลด fileciteturn1file0
 - Supervisor แต่ละแผนกสร้างรหัสทีมตัวเองและ assign งานในแผนกตัวเองได้
 - ปรับ fallback การล็อกอินให้ Manager code `9900` เข้าได้ง่ายขึ้น
+
+
+## อัปเดต v1.3
+- Manager เห็นรวมทุกแผนกในหน้าเดียวแบบ dashboard
+- มี KPI รวม, KPI แยก HK / FB / ENG, งานเร่งด่วน, งานปิดล่าสุด และ board ย่อยของแต่ละแผนก

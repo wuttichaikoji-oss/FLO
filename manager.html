@@ -1,7 +1,215 @@
-<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>MANAGER</title><link rel="stylesheet" href="styles.css"></head><body><header><div class="wrap row space"><div><div class="top-title">MANAGER</div><div id="welcome" class="small"></div></div><div class="row"><a href="manager.html" class="ghost">Manager</a><a href="board.html" class="ghost">บอร์ดรวม</a><button class="ghost" id="enablePushBtn">เปิดแจ้งเตือน</button><button class="ghost" id="logoutBtn">ออกจากระบบ</button></div></div></header><div class="wrap grid grid-2"><div class="panel"><div class="section-head"><h2 class="section-title">สร้าง / แก้ไขไอดี</h2><div id="firebaseStatus" class="firebase-inline"></div></div><form id="userForm" class="grid"><div><label>ชื่อพนักงาน</label><input id="name" required></div><div class="grid grid-3"><div><label>รหัส</label><input id="codeInput" required></div><div><label>Role</label><select id="role"><option value="fo">FO</option><option value="hk">HK</option><option value="fb">FB</option><option value="eng">ENG</option><option value="supervisor_hk">Supervisor HK</option><option value="supervisor_fb">Supervisor FB</option><option value="supervisor_eng">Supervisor ENG</option><option value="manager">Manager</option></select></div><div><label>Department</label><select id="department"><option>FO</option><option>HK</option><option>FB</option><option>ENG</option><option>MANAGEMENT</option></select></div></div><button class="good">บันทึกไอดี</button></form></div><div class="panel"><h2 class="section-title">รายชื่อไอดีทั้งหมด</h2><div id="userList"></div></div></div><div class="wrap"><div class="panel token-panel"><h2 class="section-title">สถานะเครื่องที่เปิดแจ้งเตือน</h2><div class="stats"><div class="stat"><div class="small">เครื่องทั้งหมด</div><div class="n" id="tokAll">0</div></div><div class="stat"><div class="small">HK</div><div class="n" id="tokHK">0</div></div><div class="stat"><div class="small">FB</div><div class="n" id="tokFB">0</div></div><div class="stat"><div class="small">ENG</div><div class="n" id="tokENG">0</div></div></div></div></div><script src="firebase-config.js"></script><script src="users-config.js"></script><script src="firebase-helpers.js"></script><script src="common.js"></script><script>const session=requireRole('manager');welcome.textContent='ผู้ใช้งาน: '+session.name;logoutBtn.onclick=logout;enablePushBtn.onclick=()=>enableNotificationsForCurrentUser(session,'firebaseStatus');
-async function renderUsers(){const users=await getUsers();userList.innerHTML=users.map(u=>`<article class="task"><h4>${escapeHtml(u.name)}</h4><div class="meta">Code: ${escapeHtml(u.code)} • Role: ${escapeHtml(u.role)} • Department: ${escapeHtml(u.department)}</div><div class="actions"><button onclick="editUser('${u.code}')">แก้ไข</button><button class="bad" onclick="removeUser('${u.code}')">ลบ</button></div></article>`).join('')||'<div class="small">ยังไม่มีผู้ใช้</div>'}
-window.editUser=async code=>{const users=await getUsers();const u=users.find(x=>x.code===code);if(!u)return;name.value=u.name;codeInput.value=u.code;role.value=u.role;department.value=u.department}
-window.removeUser=async code=>{if(!confirm('ลบไอดีนี้?'))return;await deleteUser(code);await renderUsers()}
-userForm.addEventListener('submit',async e=>{e.preventDefault();await upsertUser({code:codeInput.value.trim(),name:name.value.trim(),role:role.value,department:department.value});userForm.reset();await renderUsers()});
-async function renderTokens(){const info=await loadTokenStatus();tokAll.textContent=info.tokens.length;tokHK.textContent=info.hk.length;tokFB.textContent=info.fb.length;tokENG.textContent=info.eng.length}
-(async()=>{setFirebaseStatus('firebaseStatus','checking');const fb=await checkFirebaseConnection();if(fb.ok)setFirebaseStatus('firebaseStatus','connected',fb.detail);else setFirebaseStatus('firebaseStatus',fb.mode,fb.detail);await ensureUsers();await renderUsers();await renderTokens(); document.getElementById('firebaseStatus').innerHTML += ' <span class="small">Manager code เริ่มต้น = 9900</span>'})();</script></body></html>
+<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>MANAGER DASHBOARD</title><link rel="stylesheet" href="styles.css"></head><body>
+<header><div class="wrap row space"><div class="brand"><div class="brand-logo-wrap"><img class="brand-logo" src="assets/laya-logo.png" alt="Laya Resort Phuket"></div><div class="brand-copy"><div class="brand-sub">Laya Resort Phuket</div><div class="top-title">MANAGER DASHBOARD</div><div id="welcome" class="small"></div></div></div><div class="row"><a href="manager.html" class="ghost">Manager</a><a href="board.html" class="ghost">บอร์ดรวม</a><a href="log.html" class="ghost">LOG / Report</a><button class="ghost" id="enablePushBtn">เปิดแจ้งเตือน</button><button class="ghost" id="logoutBtn">ออกจากระบบ</button></div></div></header>
+
+<div class="wrap">
+  <div id="firebaseStatus" class="firebase-inline" style="margin-bottom:14px;"></div>
+
+  <div class="stats">
+    <div class="stat"><div class="small">Active Tasks</div><div class="n" id="kAll">0</div></div>
+    <div class="stat"><div class="small">Closed Logs</div><div class="n" id="kLogs">0</div></div>
+    <div class="stat"><div class="small">Urgent Open</div><div class="n" id="kUrgent">0</div></div>
+    <div class="stat"><div class="small">Users</div><div class="n" id="kUsers">0</div></div>
+  </div>
+
+  <div class="dashboard-grid" style="margin-top:16px;">
+    <div class="panel">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">ภาพรวมทุกแผนก</h2>
+          <div class="small">Manager เห็น HK / FB / ENG ในหน้าเดียว พร้อมสถานะงานและรายการเร่งด่วน</div>
+        </div>
+        <button class="ghost" id="refreshDashboardBtn">รีเฟรช</button>
+      </div>
+
+      <div class="dept-kpi-grid">
+        <div class="dept-box">
+          <div class="dept-head"><h3>HK</h3><span class="dept-tag">Housekeeping</span></div>
+          <div class="mini-stat-grid">
+            <div class="mini-stat"><div class="small">New</div><div class="n" id="hkNew">0</div></div>
+            <div class="mini-stat"><div class="small">Progress</div><div class="n" id="hkProg">0</div></div>
+            <div class="mini-stat"><div class="small">Done</div><div class="n" id="hkDone">0</div></div>
+          </div>
+        </div>
+        <div class="dept-box">
+          <div class="dept-head"><h3>FB</h3><span class="dept-tag">Food & Beverage</span></div>
+          <div class="mini-stat-grid">
+            <div class="mini-stat"><div class="small">New</div><div class="n" id="fbNew">0</div></div>
+            <div class="mini-stat"><div class="small">Progress</div><div class="n" id="fbProg">0</div></div>
+            <div class="mini-stat"><div class="small">Done</div><div class="n" id="fbDone">0</div></div>
+          </div>
+        </div>
+        <div class="dept-box">
+          <div class="dept-head"><h3>ENG</h3><span class="dept-tag">Engineering</span></div>
+          <div class="mini-stat-grid">
+            <div class="mini-stat"><div class="small">New</div><div class="n" id="engNew">0</div></div>
+            <div class="mini-stat"><div class="small">Progress</div><div class="n" id="engProg">0</div></div>
+            <div class="mini-stat"><div class="small">Done</div><div class="n" id="engDone">0</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="manager-chart-note small">ตัวเลขด้านบนจะอัปเดตตามข้อมูลจริงจาก Firebase ทันทีเมื่อมีงานเข้าใหม่หรือเปลี่ยนสถานะ</div>
+    </div>
+
+    <div class="panel">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">สรุปทีมและอุปกรณ์</h2>
+          <div class="small">ดูจำนวนรหัสผู้ใช้และเครื่องที่เปิดแจ้งเตือนอยู่</div>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="small">HK Users</div><div class="n" id="uHK">0</div></div>
+        <div class="stat"><div class="small">FB Users</div><div class="n" id="uFB">0</div></div>
+        <div class="stat"><div class="small">ENG Users</div><div class="n" id="uENG">0</div></div>
+        <div class="stat"><div class="small">FO Users</div><div class="n" id="uFO">0</div></div>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="small">HK Tokens</div><div class="n" id="tHK">0</div></div>
+        <div class="stat"><div class="small">FB Tokens</div><div class="n" id="tFB">0</div></div>
+        <div class="stat"><div class="small">ENG Tokens</div><div class="n" id="tENG">0</div></div>
+        <div class="stat"><div class="small">Supervisor Tokens</div><div class="n" id="tSV">0</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="split-panel" style="margin-top:16px;">
+    <div class="panel">
+      <div class="section-head">
+        <h2 class="section-title">งานเร่งด่วนเปิดอยู่</h2>
+        <div class="small">เฉพาะงานที่ยังไม่ถูก Close by FO</div>
+      </div>
+      <div id="urgentList" class="quick-list"></div>
+    </div>
+    <div class="panel">
+      <div class="section-head">
+        <h2 class="section-title">งานปิดล่าสุด</h2>
+        <div class="small">รวมทุกแผนก</div>
+      </div>
+      <div id="recentLogList" class="quick-list"></div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:16px;">
+    <div class="section-head">
+      <div>
+        <h2 class="section-title">Board รวมแยกตามแผนก</h2>
+        <div class="small">Manager เห็นรายการงานล่าสุดของแต่ละแผนกในหน้าเดียว</div>
+      </div>
+    </div>
+    <div class="manager-board">
+      <div class="dept-column">
+        <h3>HK</h3>
+        <div id="hkBoard" class="quick-list"></div>
+      </div>
+      <div class="dept-column">
+        <h3>FB</h3>
+        <div id="fbBoard" class="quick-list"></div>
+      </div>
+      <div class="dept-column">
+        <h3>ENG</h3>
+        <div id="engBoard" class="quick-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<dialog id="taskDialog"><div class="body"><div id="taskDetail"></div><div class="actions"><button class="ghost" onclick="taskDialog.close()">ปิด</button></div></div></dialog>
+
+<script src="firebase-config.js"></script>
+<script src="users-config.js"></script>
+<script src="firebase-helpers.js"></script>
+<script src="common.js"></script>
+<script>
+const session = requireRole('manager');
+document.getElementById('welcome').textContent = 'ผู้ใช้งาน: ' + session.name;
+document.getElementById('logoutBtn').onclick = logout;
+document.getElementById('enablePushBtn').onclick = ()=>enableNotificationsForCurrentUser(session,'firebaseStatus');
+document.getElementById('refreshDashboardBtn').onclick = async ()=>{ await renderDashboard(); };
+
+function deptStats(tasks, dep){
+  const list = (tasks||[]).filter(t => t.targetDepartment === dep);
+  return {
+    all: list.length,
+    newCount: list.filter(t => t.status === 'New from FO').length,
+    progCount: list.filter(t => t.status === 'In Progress').length,
+    doneCount: list.filter(t => t.status === 'Done by Department').length,
+    list
+  };
+}
+function quickTaskCard(t){
+  return `<div class="quick-item">
+    <h4>${escapeHtml(t.room||'-')} • ${escapeHtml(t.title||'-')}</h4>
+    <div class="small">${escapeHtml(t.desc||'-')}</div>
+    <div class="small">${escapeHtml(t.requestedBy||'-')} • ${escapeHtml(t.assignee||'ยังไม่ระบุ')} • ${escapeHtml(t.status||'-')}</div>
+    <div class="actions"><button onclick="openTask('${t.id}','tasks')">ดูรายละเอียด</button></div>
+  </div>`;
+}
+function quickLogCard(t){
+  return `<div class="quick-item">
+    <h4>${escapeHtml(t.title||'-')} <span class="dept-tag">${escapeHtml(t.targetDepartment||'-')}</span></h4>
+    <div class="small">${escapeHtml(t.room||'-')} • ${t.totalMinutes||0} นาที</div>
+    <div class="small">ปิดโดย FO: ${escapeHtml(t.closedByFO||'-')}</div>
+    <div class="actions"><button onclick="openTask('${t.id}','logs')">ดูรายละเอียด</button></div>
+  </div>`;
+}
+window.openTask = async function(id, source){
+  await renderTaskDetail(id,'taskDetail',source||'tasks');
+  taskDialog.showModal();
+};
+async function renderDashboard(dataOverride){
+  const data = dataOverride || await getData();
+  const tasks = data.tasks || [];
+  const logs = data.logs || [];
+  const users = await getUsers();
+  const tokenInfo = await loadTokenStatus();
+
+  const hk = deptStats(tasks,'HK');
+  const fb = deptStats(tasks,'FB');
+  const eng = deptStats(tasks,'ENG');
+
+  kAll.textContent = tasks.length;
+  kLogs.textContent = logs.length;
+  kUrgent.textContent = tasks.filter(t => t.priority === 'Urgent').length;
+  kUsers.textContent = users.length;
+
+  hkNew.textContent = hk.newCount; hkProg.textContent = hk.progCount; hkDone.textContent = hk.doneCount;
+  fbNew.textContent = fb.newCount; fbProg.textContent = fb.progCount; fbDone.textContent = fb.doneCount;
+  engNew.textContent = eng.newCount; engProg.textContent = eng.progCount; engDone.textContent = eng.doneCount;
+
+  uHK.textContent = users.filter(u => u.role === 'hk').length;
+  uFB.textContent = users.filter(u => u.role === 'fb').length;
+  uENG.textContent = users.filter(u => u.role === 'eng').length;
+  uFO.textContent = users.filter(u => u.role === 'fo').length;
+
+  tHK.textContent = (tokenInfo.hk||[]).length;
+  tFB.textContent = (tokenInfo.fb||[]).length;
+  tENG.textContent = (tokenInfo.eng||[]).length;
+  tSV.textContent = (tokenInfo.supervisors||[]).length;
+
+  const urgent = tasks.filter(t => t.priority === 'Urgent').sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+  urgentList.innerHTML = urgent.length ? urgent.slice(0,8).map(quickTaskCard).join('') : '<div class="small">ยังไม่มีงานเร่งด่วน</div>';
+  recentLogList.innerHTML = logs.length ? logs.slice(0,8).map(quickLogCard).join('') : '<div class="small">ยังไม่มีงานปิดล่าสุด</div>';
+
+  hkBoard.innerHTML = hk.list.length ? hk.list.slice(0,6).map(quickTaskCard).join('') : '<div class="small">ยังไม่มีงาน HK</div>';
+  fbBoard.innerHTML = fb.list.length ? fb.list.slice(0,6).map(quickTaskCard).join('') : '<div class="small">ยังไม่มีงาน FB</div>';
+  engBoard.innerHTML = eng.list.length ? eng.list.slice(0,6).map(quickTaskCard).join('') : '<div class="small">ยังไม่มีงาน ENG</div>';
+}
+(async()=>{
+  setFirebaseStatus('firebaseStatus','checking');
+  const fb = await checkFirebaseConnection();
+  if(fb.ok) setFirebaseStatus('firebaseStatus','connected', fb.detail + ' • Manager Dashboard');
+  else setFirebaseStatus('firebaseStatus', fb.mode, fb.detail);
+  await ensureUsersReady();
+  await seedData();
+  await renderDashboard();
+  if(isFirebaseReady()){
+    const wait = setInterval(()=>{
+      if(window.firebaseHelpers?.subscribe){
+        clearInterval(wait);
+        window.firebaseHelpers.subscribe(async(data)=>{ await renderDashboard(data); });
+      }
+    }, 500);
+  }
+})();
+</script></body></html>
