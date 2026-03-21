@@ -65,3 +65,9 @@ service cloud.firestore {
   - ENG เห็น popup ของ ENG เท่านั้น
 - popup จะแสดงเมื่อมีงานใหม่ `New from FO`
 - มีปุ่ม `ดูงาน` และ `ปิด`
+
+
+## อัปเดต v1.2
+- ปรับหน้า Supervisor HK / FB / ENG ให้ใช้ layout แนวเดียวกับไฟล์ supervisor ที่ผู้ใช้อัปโหลด fileciteturn1file0
+- Supervisor แต่ละแผนกสร้างรหัสทีมตัวเองและ assign งานในแผนกตัวเองได้
+- ปรับ fallback การล็อกอินให้ Manager code `9900` เข้าได้ง่ายขึ้น

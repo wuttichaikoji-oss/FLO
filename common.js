@@ -14,7 +14,16 @@ async function closeTaskToLog(id,closedBy){const d=await getData();const t=(d.ta
 async function ensureUsers(){if(isFirebaseReady()&&window.firebaseHelpers?.ensureDefaultUsers)return await window.firebaseHelpers.ensureDefaultUsers(window.DEFAULT_APP_USERS||[]);const d=loadLocalData();if(!(d.users||[]).length){d.users=(window.DEFAULT_APP_USERS||[]).map(u=>({...u,id:u.code}));saveLocalData(d)}return d.users}
 async function getUsers(){if(isFirebaseReady()&&window.firebaseHelpers?.ensureDefaultUsers){await window.firebaseHelpers.ensureDefaultUsers(window.DEFAULT_APP_USERS||[]);return await window.firebaseHelpers.getUsers()}return await ensureUsers()}
 async function upsertUser(u){if(isFirebaseReady()&&window.firebaseHelpers?.upsertUser)return await window.firebaseHelpers.upsertUser(u);const d=loadLocalData();d.users=d.users||[];const i=d.users.findIndex(x=>x.code===u.code);if(i>=0)d.users[i]=u;else d.users.unshift(u);saveLocalData(d)} async function deleteUser(code){if(isFirebaseReady()&&window.firebaseHelpers?.deleteUser)return await window.firebaseHelpers.deleteUser(code);const d=loadLocalData();d.users=(d.users||[]).filter(x=>x.code!==code);saveLocalData(d)}
-async function login(code){const users=await getUsers();const u=users.find(x=>String(x.code).trim()===String(code).trim());if(!u)return false;saveSession({name:u.name,role:u.role,code:u.code,department:u.department||'',loginAt:new Date().toISOString()});location.href=roleHome(u.role);return true;}
+async function login(code){
+  let users=[];
+  try{ users = await getUsers(); }catch(err){ users = []; }
+  if(!users.length) users = (window.DEFAULT_APP_USERS||[]);
+  const u=users.find(x=>String(x.code).trim()===String(code).trim());
+  if(!u)return false;
+  saveSession({name:u.name,role:u.role,code:u.code,department:u.department||'',loginAt:new Date().toISOString()});
+  location.href=roleHome(u.role);
+  return true;
+}
 async function seedData(force=false){const d=await getData();if((d.tasks||[]).length&&!force)return;const tasks=[{id:uid(),title:'Room Ready ด่วน',outlet:'Hotel',room:'A105',desc:'แขก early check-in',taskType:'Room Ready',requestedBy:'FO A',assignedBy:'Supervisor HK',targetDepartment:'HK',assignee:'HK A',priority:'Urgent',status:'New from FO',createdAt:new Date().toISOString(),pushEnabled:true,comments:[]},{id:uid(),title:'เตรียม Welcome Drink',outlet:'Lobby',room:'-',desc:'แขก VIP จะเข้ามา',taskType:'Guest Request',requestedBy:'FO A',assignedBy:'Supervisor FB',targetDepartment:'FB',assignee:'FB A',priority:'High',status:'In Progress',createdAt:new Date().toISOString(),startedAt:new Date().toISOString(),pushEnabled:true,comments:[]},{id:uid(),title:'เช็กแอร์ห้อง D308',outlet:'Hotel',room:'D308',desc:'แอร์ไม่เย็น',taskType:'Engineering',requestedBy:'FO A',assignedBy:'Supervisor ENG',targetDepartment:'ENG',assignee:'ENG A',priority:'High',status:'Done by Department',createdAt:new Date().toISOString(),startedAt:new Date().toISOString(),doneAt:new Date().toISOString(),pushEnabled:true,comments:[]}];if(isFirebaseReady()){for(const t of tasks) await window.firebaseHelpers.upsertTask(t)} else {const x=loadLocalData();x.tasks=tasks;x.logs=[];saveLocalData(x)}}
 async function renderTaskDetail(id,targetId='taskDetail',source='tasks'){const d=await getData();const arr=source==='logs'?(d.logs||[]):(d.tasks||[]);const t=arr.find(x=>x.id===id);if(!t)return;document.getElementById(targetId).innerHTML=`<h2 style="margin-top:0">${escapeHtml(t.title)}</h2><div class="small">${escapeHtml(taskLocationText(t))}</div><p><strong>รายละเอียด:</strong> ${escapeHtml(t.desc||'-')}</p><p><strong>FO:</strong> ${escapeHtml(t.requestedBy||'-')} • <strong>แผนก:</strong> ${escapeHtml(t.targetDepartment||'-')} • <strong>Assigned by:</strong> ${escapeHtml(t.assignedBy||'-')}</p><p><strong>คนทำงาน:</strong> ${escapeHtml(t.assignee||'-')} • <strong>สถานะ:</strong> ${escapeHtml(t.status||t.lifecycleStatus||'-')}</p><div class="badges">${statusBadge(t)}</div><div>${(t.images||[]).length?(t.images||[]).map(img=>`<img class="preview" src="${img.data}" alt="${escapeHtml(img.name)}">`).join(''):'<div class="small">ยังไม่มีรูป</div>'}</div>`}
 async function loadTokenStatus(){if(!isFirebaseReady()||!window.firebaseHelpers?.listDeviceTokens)return {tokens:[],hk:[],fb:[],eng:[],fo:[],manager:[],supervisors:[]};const tokens=await window.firebaseHelpers.listDeviceTokens();return {tokens,hk:tokens.filter(t=>t.role==='hk'&&t.enabled!==false),fb:tokens.filter(t=>t.role==='fb'&&t.enabled!==false),eng:tokens.filter(t=>t.role==='eng'&&t.enabled!==false),fo:tokens.filter(t=>t.role==='fo'&&t.enabled!==false),manager:tokens.filter(t=>t.role==='manager'&&t.enabled!==false),supervisors:tokens.filter(t=>String(t.role||'').startsWith('supervisor_')&&t.enabled!==false)}}
@@ -69,3 +78,11 @@ function popupMarkup(){
     </div>
   </div>`;
 }
+
+function roleLabel(role){
+  return {fo:'FO',hk:'HK',fb:'FB',eng:'ENG',supervisor_hk:'Supervisor HK',supervisor_fb:'Supervisor FB',supervisor_eng:'Supervisor ENG',manager:'Manager'}[role] || role || '-';
+}
+async function getUsersSnapshot(){ return await getUsers(); }
+async function findUserByCode(code){ const users = await getUsers(); return users.find(u=>String(u.code)===String(code)); }
+async function createOrUpdateUser(user){ await upsertUser(user); return user; }
+async function ensureUsersReady(){ return await ensureUsers(); }
