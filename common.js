@@ -1,5 +1,13 @@
 const STORAGE_KEY='multi_dept_local_v1',SESSION_KEY='multi_dept_session_v1',ACTIVE_STATUSES=new Set(['New from FO','In Progress','Done by Department']);
 const fmtDate=d=>d?new Date(d).toLocaleString('th-TH'):'-';const uid=()=>Math.random().toString(36).slice(2,10);const escapeHtml=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const roleHome=r=>({manager:'manager.html',fo:'fo.html',hk:'hk.html',fb:'fb.html',eng:'eng.html',supervisor_hk:'supervisor-hk.html',supervisor_fb:'supervisor-fb.html',supervisor_eng:'supervisor-eng.html'})[r]||'index.html';
+function normalizeDefaultUsers(){
+  const base = Array.isArray(window.DEFAULT_APP_USERS) ? [...window.DEFAULT_APP_USERS] : [];
+  const hasManager = base.some(u => String(u.code).trim() === '9900');
+  if(!hasManager){
+    base.push({code:'9900',name:'Manager',role:'manager',department:'MANAGEMENT'});
+  }
+  return base;
+}
 function loadSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch{return null}} function saveSession(s){localStorage.setItem(SESSION_KEY,JSON.stringify(s))} function logout(){localStorage.removeItem(SESSION_KEY);location.href='index.html';}
 function requireRole(roles){const s=loadSession();if(!s){location.href='index.html';throw new Error('No session')}const a=Array.isArray(roles)?roles:[roles];if(roles&&!a.includes(s.role)){location.href=roleHome(s.role);throw new Error('Wrong role')}return s;}
 function taskLocationText(t){return [t.outlet,t.room?'ห้อง '+t.room:'',t.targetDepartment?'แผนก '+t.targetDepartment:''].filter(Boolean).join(' • ')} function statusBadge(t){const label=t.status||t.lifecycleStatus||'-';return `<span class="badge">${escapeHtml(label)}</span>${t.priority==='Urgent'?'<span class="badge urgent">Urgent</span>':''}${t.pushEnabled?'<span class="badge ok">Push</span>':''}`;}
@@ -11,13 +19,22 @@ function loadLocalData(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY)
 async function getData(){return isFirebaseReady()?await window.firebaseHelpers.getData():loadLocalData()} async function getTasks(){const d=await getData();return d.tasks||[]} async function getLogs(){const d=await getData();return d.logs||[]}
 async function updateTask(task){if(isFirebaseReady())return await window.firebaseHelpers.upsertTask(task);const d=loadLocalData();const i=d.tasks.findIndex(x=>x.id===task.id);if(i>=0)d.tasks[i]=task;else d.tasks.unshift(task);saveLocalData(d)}
 async function closeTaskToLog(id,closedBy){const d=await getData();const t=(d.tasks||[]).find(x=>x.id===id);if(!t)return;const now=new Date().toISOString();const closed={...t,closedAt:now,closedByFO:closedBy,lifecycleStatus:'Closed by FO',totalMinutes:Math.max(0,Math.round((new Date(now)-new Date(t.createdAt))/60000))};d.tasks=(d.tasks||[]).filter(x=>x.id!==id);d.logs=d.logs||[];d.logs.unshift(closed);if(isFirebaseReady()){await window.firebaseHelpers.deleteTask(id);await window.firebaseHelpers.addLog(closed)} else saveLocalData(d)}
-async function ensureUsers(){if(isFirebaseReady()&&window.firebaseHelpers?.ensureDefaultUsers)return await window.firebaseHelpers.ensureDefaultUsers(window.DEFAULT_APP_USERS||[]);const d=loadLocalData();if(!(d.users||[]).length){d.users=(window.DEFAULT_APP_USERS||[]).map(u=>({...u,id:u.code}));saveLocalData(d)}return d.users}
-async function getUsers(){if(isFirebaseReady()&&window.firebaseHelpers?.ensureDefaultUsers){await window.firebaseHelpers.ensureDefaultUsers(window.DEFAULT_APP_USERS||[]);return await window.firebaseHelpers.getUsers()}return await ensureUsers()}
+async function ensureUsers(){if(isFirebaseReady()&&window.firebaseHelpers?.ensureDefaultUsers)return await window.firebaseHelpers.ensureDefaultUsers(window.DEFAULT_APP_USERS||[]);const d=loadLocalData();if(!(d.users||[]).length){d.users=normalizeDefaultUsers().map(u=>({...u,id:u.code}));saveLocalData(d)}return d.users}
+async function getUsers(){
+  if(isFirebaseReady()&&window.firebaseHelpers?.ensureDefaultUsers){
+    try{
+      await window.firebaseHelpers.ensureDefaultUsers(normalizeDefaultUsers());
+      const remote = await window.firebaseHelpers.getUsers();
+      if(remote && remote.length) return remote;
+    }catch(err){}
+  }
+  return await ensureUsers();
+}
 async function upsertUser(u){if(isFirebaseReady()&&window.firebaseHelpers?.upsertUser)return await window.firebaseHelpers.upsertUser(u);const d=loadLocalData();d.users=d.users||[];const i=d.users.findIndex(x=>x.code===u.code);if(i>=0)d.users[i]=u;else d.users.unshift(u);saveLocalData(d)} async function deleteUser(code){if(isFirebaseReady()&&window.firebaseHelpers?.deleteUser)return await window.firebaseHelpers.deleteUser(code);const d=loadLocalData();d.users=(d.users||[]).filter(x=>x.code!==code);saveLocalData(d)}
 async function login(code){
   let users=[];
   try{ users = await getUsers(); }catch(err){ users = []; }
-  if(!users.length) users = (window.DEFAULT_APP_USERS||[]);
+  if(!users.length) users = normalizeDefaultUsers();
   const u=users.find(x=>String(x.code).trim()===String(code).trim());
   if(!u)return false;
   saveSession({name:u.name,role:u.role,code:u.code,department:u.department||'',loginAt:new Date().toISOString()});

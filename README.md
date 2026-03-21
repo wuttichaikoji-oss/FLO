@@ -76,3 +76,9 @@ service cloud.firestore {
 ## อัปเดต v1.3
 - Manager เห็นรวมทุกแผนกในหน้าเดียวแบบ dashboard
 - มี KPI รวม, KPI แยก HK / FB / ENG, งานเร่งด่วน, งานปิดล่าสุด และ board ย่อยของแต่ละแผนก
+
+
+## อัปเดต v1.3.1
+- แก้รหัส Manager `9900` ให้เข้าได้แน่นอนมากขึ้น
+- เพิ่ม fallback ถ้า users collection ยังว่างหรืออ่าน Firebase users ไม่ได้
+- เพิ่ม fallback collection name ใน `firebase-helpers.js` เพื่อกัน error path ว่าง
