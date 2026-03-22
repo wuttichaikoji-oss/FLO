@@ -1,4 +1,10 @@
-window.FIREBASE_CONFIG={apiKey:"AIzaSyD41u8RkhLuCGd9JVCfn_sqSMLBjGbNn2c",authDomain:"hk-task-12b10.firebaseapp.com",projectId:"hk-task-12b10",storageBucket:"hk-task-12b10.firebasestorage.app",messagingSenderId:"50951010152",appId:"1:50951010152:web:5d7e6fdbb39f16a5e988dd",measurementId:"G-WV53WB0FKH"};
+window.FIREBASE_CONFIG={  apiKey: "AIzaSyAUGp9LNLTM32XsKhAEx5Jyc2ya9jqLKrE",
+  authDomain: "laya-flo.firebaseapp.com",
+  projectId: "laya-flo",
+  storageBucket: "laya-flo.firebasestorage.app",
+  messagingSenderId: "39856673085",
+  appId: "1:39856673085:web:29473fd50949d0a4297554",
+  measurementId: "G-N0X69132CQ"};
 window.FIREBASE_TASKS_COLLECTION="multi_dept_tasks_v1";
 window.FIREBASE_LOGS_COLLECTION="multi_dept_logs_v1";
 window.FIREBASE_USERS_COLLECTION="multi_dept_users_v1";
